@@ -1,1 +1,74 @@
 
+import asyncio
+from mavsdk import System
+from mavsdk.offboard import PositionNedYaw
+
+async def run():
+    drone = System()
+    await drone.connect(system_address="udpin://127.0.0.1:14550")
+
+    print("Waiting for drone to connect...")
+    async for state in drone.core.connection_state():
+        if state.is_connected:
+            print("✅ Drone connected!")
+            break
+
+    print("🚀 Checking if drone is armable...")
+    async for health in drone.telemetry.health():
+        if health.is_global_position_ok and health.is_home_position_ok:
+            print("✅ Drone is ready for mission")
+            break
+        print("⏳ Waiting for GPS lock and home position...")
+        await asyncio.sleep(1)
+
+    print("🚀 Setting mode to GUIDED using MAVLink...")
+    await drone.action.arm()
+    await asyncio.sleep(2)
+
+    print("🚁 Taking off to 5 meters...")
+    await drone.action.takeoff()
+    await asyncio.sleep(5)
+
+    print("✅ Switching to OFFBOARD Mode for Waypoints...")
+
+    # Start Offboard Mode
+    await drone.offboard.set_position_ned(PositionNedYaw(0.0, 0.0, -5.0, 0.0))
+    await drone.offboard.start()
+
+    waypoints = [
+        (10, 0, -5),   # Move North 10m
+        (0, 10, -5),   # Move East 10m
+        (-10, 0, -5),  # Move South 10m
+        (0, -10, -5)   # Move West 10m
+    ]
+
+    for north, east, down in waypoints:
+        print(f"✈️ Going to waypoint: N={north}, E={east}, D={down}")
+        await drone.offboard.set_position_ned(PositionNedYaw(north, east, down, 0.0))
+        await asyncio.sleep(5)
+
+    print("🏡 Returning to launch...")
+    await drone.action.return_to_launch()
+    await asyncio.sleep(15)
+
+    print("🚀 Switching to LAND mode for safe disarm...")
+    await drone.action.land()
+
+    print("⏳ Waiting for the drone to land...")
+    async for in_air in drone.telemetry.in_air():
+        if not in_air:
+            print("✅ Drone has landed.")
+            break
+        await asyncio.sleep(1)
+
+    print("🚀 Disarming drone...")
+    try:
+        await drone.action.disarm()
+        print("✅ Drone disarmed.")
+    except Exception as e:
+        print(f"❌ Failed to disarm: {e}")
+
+    print("✅ Mission complete.")
+
+if __name__ == "__main__":
+    asyncio.run(run())
