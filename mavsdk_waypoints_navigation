@@ -1,4 +1,3 @@
-
 import asyncio
 from mavsdk import System
 from mavsdk.offboard import PositionNedYaw
@@ -36,16 +35,16 @@ async def run():
     await drone.offboard.start()
 
     waypoints = [
-        (10, 0, -5),   # Move North 10m
-        (0, 10, -5),   # Move East 10m
-        (-10, 0, -5),  # Move South 10m
-        (0, -10, -5)   # Move West 10m
+        (50, 0, -5),   # Move North 50m
+        (0, 50, -5),   # Move East 50m
+        (-50, 0, -5),  # Move South 50m
+        (0, -50, -5)   # Move West 50m
     ]
 
     for north, east, down in waypoints:
         print(f"✈️ Going to waypoint: N={north}, E={east}, D={down}")
         await drone.offboard.set_position_ned(PositionNedYaw(north, east, down, 0.0))
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
 
     print("🏡 Returning to launch...")
     await drone.action.return_to_launch()
